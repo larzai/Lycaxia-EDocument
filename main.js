@@ -21,7 +21,7 @@
     category: data.dataset.category || "Dokumen",
     published: data.dataset.published || "",
     updated: data.dataset.updated || "",
-    author: data.dataset.author || "larzai",
+    author: data.dataset.author || "",
     cover: data.dataset.cover || ""
   };
 
@@ -509,19 +509,59 @@
 
     const headings = [...content.querySelectorAll(headingSelector)];
 
+    const root = {
+      level: 0,
+      children: []
+    };
+
+    const stack = [root];
+
     headings.forEach((heading) => {
       const level = Number(heading.tagName.slice(1));
 
-      const item = el(
-        "a",
-        `toc-link toc-level-h${level}`,
-        heading.textContent.trim()
-      );
+      const node = {
+        heading,
+        level,
+        children: []
+      };
 
-      item.href = `#${heading.id}`;
-      item.dataset.target = heading.id;
-      tocList.append(item);
+      while (
+        stack.length > 1 &&
+        stack[stack.length - 1].level >= level
+      ) {
+        stack.pop();
+      }
+
+      stack[stack.length - 1].children.push(node);
+      stack.push(node);
     });
+
+    function buildNodes(nodes, parent) {
+      nodes.forEach((node) => {
+        const item = el("div", "toc-node");
+
+        const tocLink = el(
+          "a",
+          `toc-link toc-level-h${node.level}`,
+          node.heading.textContent.trim()
+        );
+
+        tocLink.href = `#${node.heading.id}`;
+        tocLink.dataset.target = node.heading.id;
+
+        item.append(tocLink);
+
+        if (node.children.length > 0) {
+          const children = el("div", "toc-node-children");
+          buildNodes(node.children, children);
+          item.append(children);
+        }
+
+        parent.append(item);
+      });
+    }
+
+    buildNodes(root.children, tocList);
 
     tocPanel.hidden = headings.length === 0;
   }
